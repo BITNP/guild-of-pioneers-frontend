@@ -6,7 +6,7 @@ const route = useRoute()
 
 const items = [
   { label: 'Home', icon: Home, to: 'home' },
-  { label: 'My BITNP', icon: GraduationCap },
+  { label: 'My BITNP', icon: GraduationCap, to: 'my-bitnp' },
   { label: 'Todo', icon: ListTodo },
   { label: 'Settings', icon: Settings, to: 'settings' },
 ]

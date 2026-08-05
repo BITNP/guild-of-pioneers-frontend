@@ -10,6 +10,7 @@ const { login } = useAuth()
 
 const phone = ref('')
 const password = ref('')
+const rememberMe = ref(false)
 const errorMessage = ref('')
 const submitting = ref(false)
 
@@ -22,7 +23,7 @@ async function onSubmit() {
 
   submitting.value = true
   try {
-    await login(phone.value, password.value)
+    await login(phone.value, password.value, rememberMe.value)
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
     router.replace(redirect)
   } catch (error) {
@@ -78,6 +79,17 @@ async function onSubmit() {
             :disabled="submitting"
           >
         </div>
+
+        <label class="flex items-center gap-2 text-sm" for="remember-me">
+          <input
+            id="remember-me"
+            v-model="rememberMe"
+            type="checkbox"
+            class="h-4 w-4 rounded border-input text-primary accent-primary disabled:opacity-50"
+            :disabled="submitting"
+          >
+          <span class="text-muted-foreground">Remember me</span>
+        </label>
 
         <p
           v-if="errorMessage"

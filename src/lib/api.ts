@@ -4,6 +4,7 @@ export interface User {
   avatar: string | null
   phone: string
   email: string | null
+  department: string | null
 }
 
 interface ApiErrorBody {
@@ -49,10 +50,10 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   return (await response.json()) as T
 }
 
-export function login(phone: string, password: string): Promise<User> {
+export function login(phone: string, password: string, rememberMe: boolean): Promise<User> {
   return apiFetch<User>('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ phone, password }),
+    body: JSON.stringify({ phone, password, rememberMe }),
   })
 }
 

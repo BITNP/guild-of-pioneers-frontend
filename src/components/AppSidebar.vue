@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { GraduationCap, Home, ListTodo, Settings } from '@lucide/vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
 
 const items = [
-  { label: 'Home', icon: Home, active: true },
-  { label: 'My BITNP', icon: GraduationCap, active: false },
-  { label: 'Todo', icon: ListTodo, active: false },
-  { label: 'Settings', icon: Settings, active: false },
+  { label: 'Home', icon: Home, to: 'home' },
+  { label: 'My BITNP', icon: GraduationCap },
+  { label: 'Todo', icon: ListTodo },
+  { label: 'Settings', icon: Settings, to: 'settings' },
 ]
+
+function isActive(item: (typeof items)[number]): boolean {
+  return 'to' in item && item.to === route.name
+}
 </script>
 
 <template>
@@ -19,20 +26,22 @@ const items = [
     </div>
 
     <nav class="flex flex-1 flex-col gap-1 px-2">
-      <button
+      <component
+        :is="'to' in item ? 'RouterLink' : 'button'"
         v-for="item in items"
         :key="item.label"
-        type="button"
+        :to="'to' in item ? { name: item.to } : undefined"
+        :type="'to' in item ? undefined : 'button'"
         class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
         :class="
-          item.active
+          isActive(item)
             ? 'bg-sidebar-accent text-sidebar-accent-foreground'
             : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
         "
       >
-        <component :is="item.icon" class="h-4 w-4 shrink-0" :stroke-width="item.active ? 2.4 : 2" />
+        <component :is="item.icon" class="h-4 w-4 shrink-0" :stroke-width="isActive(item) ? 2.4 : 2" />
         {{ item.label }}
-      </button>
+      </component>
     </nav>
 
     <div class="px-4 pb-4">

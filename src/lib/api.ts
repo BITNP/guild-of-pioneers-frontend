@@ -24,13 +24,14 @@ export class ApiError extends Error {
 }
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers)
+  if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
   const response = await fetch(path, {
     credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
     ...options,
+    headers,
   })
 
   if (!response.ok) {
@@ -63,4 +64,13 @@ export function logout(): Promise<void> {
 
 export function fetchMe(): Promise<User> {
   return apiFetch<User>('/api/auth/me')
+}
+
+export function uploadAvatar(file: File): Promise<User> {
+  const body = new FormData()
+  body.append('file', file)
+  return apiFetch<User>('/api/auth/avatar', {
+    method: 'PUT',
+    body,
+  })
 }

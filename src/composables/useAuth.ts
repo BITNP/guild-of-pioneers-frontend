@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { ApiError, fetchMe, login as apiLogin, logout as apiLogout, type User } from '@/lib/api'
+import { ApiError, fetchMe, login as apiLogin, logout as apiLogout, uploadAvatar as apiUploadAvatar, type User } from '@/lib/api'
 
 const user = ref<User | null>(null)
 const isLoading = ref(false)
@@ -37,6 +37,11 @@ async function logout(): Promise<void> {
   }
 }
 
+async function uploadAvatar(file: File): Promise<User> {
+  user.value = await apiUploadAvatar(file)
+  return user.value
+}
+
 export function useAuth() {
   return {
     user,
@@ -45,5 +50,6 @@ export function useAuth() {
     refresh,
     login,
     logout,
+    uploadAvatar,
   }
 }

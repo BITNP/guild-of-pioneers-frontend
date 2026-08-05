@@ -8,7 +8,7 @@ const router = useRouter()
 const route = useRoute()
 const { login } = useAuth()
 
-const phone = ref('')
+const username = ref('')
 const password = ref('')
 const rememberMe = ref(false)
 const errorMessage = ref('')
@@ -16,23 +16,26 @@ const submitting = ref(false)
 
 async function onSubmit() {
   errorMessage.value = ''
-  if (!phone.value || !password.value) {
-    errorMessage.value = 'Please enter your phone and password.'
+  if (!username.value || !password.value) {
+    errorMessage.value = 'Please enter your username and password.'
     return
   }
 
   submitting.value = true
   try {
-    await login(phone.value, password.value, rememberMe.value)
+    await login(username.value, password.value, rememberMe.value)
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
     router.replace(redirect)
   } catch (error) {
-    errorMessage.value =
-      error instanceof ApiError && error.status === 401
-        ? 'Invalid phone or password.'
-        : error instanceof Error
-          ? error.message
-          : 'Something went wrong. Please try again.'
+    if (error instanceof ApiError && error.status === 401) {
+      errorMessage.value = 'Invalid username or password.'
+    } else if (error instanceof ApiError && error.status >= 500) {
+      errorMessage.value = 'Something went wrong on our end. Please try again later.'
+    } else if (error instanceof Error) {
+      errorMessage.value = error.message
+    } else {
+      errorMessage.value = 'Something went wrong. Please try again.'
+    }
   } finally {
     submitting.value = false
   }
@@ -54,15 +57,14 @@ async function onSubmit() {
 
       <form class="flex flex-col gap-4" novalidate @submit.prevent="onSubmit">
         <div class="flex flex-col gap-2">
-          <label for="phone" class="text-sm font-medium">Phone</label>
+          <label for="username" class="text-sm font-medium">Username</label>
           <input
-            id="phone"
-            v-model="phone"
+            id="username"
+            v-model="username"
             type="text"
-            inputmode="numeric"
             autocomplete="username"
             class="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-            placeholder="Your phone number"
+            placeholder="Your username"
             :disabled="submitting"
           >
         </div>

@@ -19,10 +19,10 @@ async function refresh(): Promise<boolean> {
   }
 }
 
-async function login(phone: string, password: string, rememberMe: boolean): Promise<User> {
+async function login(username: string, password: string, rememberMe: boolean): Promise<User> {
   isLoading.value = true
   try {
-    user.value = await apiLogin(phone, password, rememberMe)
+    user.value = await apiLogin(username, password, rememberMe)
     return user.value
   } finally {
     isLoading.value = false

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { Camera } from '@lucide/vue'
+import { onMounted, reactive, ref } from 'vue'
+import { Camera, Pencil } from '@lucide/vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import AvatarCropper from '@/components/AvatarCropper.vue'
 import { useAuth } from '@/composables/useAuth'
 import { ApiError } from '@/lib/api'
 
-const { user, refresh, uploadAvatar } = useAuth()
+const { user, refresh, uploadAvatar, updateProfile } = useAuth()
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_SIZE = 5 * 1024 * 1024
@@ -17,11 +17,59 @@ const cropLoading = ref(false)
 const cropError = ref<string | null>(null)
 const fileError = ref('')
 
+const isEditing = ref(false)
+const saving = ref(false)
+const editError = ref<string | null>(null)
+const editForm = reactive({
+  phone: '',
+  email: '',
+})
+
 onMounted(async () => {
   if (user.value === null) {
     await refresh()
   }
 })
+
+function startEdit() {
+  if (!user.value) return
+  editForm.phone = user.value.phone
+  editForm.email = user.value.email ?? ''
+  editError.value = null
+  isEditing.value = true
+}
+
+function cancelEdit() {
+  isEditing.value = false
+  editError.value = null
+}
+
+async function onSaveEdit() {
+  if (!user.value) return
+  editError.value = null
+  saving.value = true
+  try {
+    await updateProfile({
+      phone: editForm.phone,
+      email: editForm.email.trim() || null,
+    })
+    isEditing.value = false
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      editError.value = 'Phone is already in use.'
+    } else if (error instanceof ApiError && error.status === 400) {
+      editError.value = error.message
+    } else if (error instanceof ApiError && error.status >= 500) {
+      editError.value = 'Something went wrong on our end. Please try again later.'
+    } else if (error instanceof Error) {
+      editError.value = error.message
+    } else {
+      editError.value = 'Something went wrong. Please try again.'
+    }
+  } finally {
+    saving.value = false
+  }
+}
 
 function openFilePicker() {
   fileError.value = ''
@@ -115,6 +163,14 @@ async function onCropConfirm(file: File) {
               </span>
             </div>
           </div>
+          <button
+            type="button"
+            class="ml-auto inline-flex h-9 items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+            @click="isEditing ? cancelEdit() : startEdit()"
+          >
+            <Pencil v-if="!isEditing" class="h-4 w-4" :stroke-width="2" />
+            {{ isEditing ? 'Cancel' : 'Edit' }}
+          </button>
         </div>
 
         <p
@@ -135,17 +191,50 @@ async function onCropConfirm(file: File) {
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div class="flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2">
-            <span class="text-xs text-muted-foreground">Phone</span>
-            <span class="text-sm font-medium">{{ user.phone }}</span>
+            <label for="profile-phone" class="text-xs text-muted-foreground">Phone</label>
+            <input
+              v-if="isEditing"
+              id="profile-phone"
+              v-model="editForm.phone"
+              type="text"
+              class="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-medium shadow-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+            <span v-else class="text-sm font-medium">{{ user.phone }}</span>
           </div>
           <div class="flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2">
-            <span class="text-xs text-muted-foreground">Email</span>
-            <span class="text-sm font-medium">{{ user.email ?? '—' }}</span>
+            <label for="profile-email" class="text-xs text-muted-foreground">Email</label>
+            <input
+              v-if="isEditing"
+              id="profile-email"
+              v-model="editForm.email"
+              type="email"
+              class="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-medium shadow-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+            <span v-else class="text-sm font-medium">{{ user.email ?? '—' }}</span>
           </div>
           <div class="flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2">
             <span class="text-xs text-muted-foreground">Department</span>
             <span class="text-sm font-medium">{{ user.department ?? 'null' }}</span>
           </div>
+        </div>
+
+        <p
+          v-if="editError"
+          class="text-sm text-destructive"
+          role="alert"
+        >
+          {{ editError }}
+        </p>
+
+        <div v-if="isEditing" class="flex justify-end">
+          <button
+            type="button"
+            class="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            :disabled="saving"
+            @click="onSaveEdit"
+          >
+            {{ saving ? 'Saving…' : 'Save' }}
+          </button>
         </div>
       </div>
 

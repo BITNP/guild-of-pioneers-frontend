@@ -74,3 +74,15 @@ export function uploadAvatar(file: File): Promise<User> {
     body,
   })
 }
+
+export interface UpdateProfileInput {
+  phone: string
+  email: string | null
+}
+
+export function updateProfile(profile: UpdateProfileInput): Promise<User> {
+  return apiFetch<User>('/api/auth/profile', {
+    method: 'PUT',
+    body: JSON.stringify(profile),
+  })
+}

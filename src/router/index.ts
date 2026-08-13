@@ -25,6 +25,11 @@ const router = createRouter({
       name: 'my-bitnp',
       component: () => import('@/views/MyBitnpView.vue'),
     },
+    {
+      path: '/projects',
+      name: 'project',
+      component: () => import('@/views/ProjectView.vue'),
+    },
   ],
 })
 

@@ -86,3 +86,19 @@ export function updateProfile(profile: UpdateProfileInput): Promise<User> {
     body: JSON.stringify(profile),
   })
 }
+
+export interface Project {
+  id: number
+  title: string
+  cover: string | null
+  description: string | null
+  createdDate: string
+  updatedDate: string
+  endDate: string | null
+  leaderIds: number[]
+  memberIds: number[]
+}
+
+export function fetchProjects(): Promise<Project[]> {
+  return apiFetch<Project[]>('/api/todo/projects')
+}

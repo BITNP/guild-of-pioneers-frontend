@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { GraduationCap, Home, ListTodo, Settings } from '@lucide/vue'
+import { FolderKanban, GraduationCap, Home, Settings } from '@lucide/vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -7,7 +7,7 @@ const route = useRoute()
 const items = [
   { label: 'Home', icon: Home, to: 'home' },
   { label: 'My BITNP', icon: GraduationCap, to: 'my-bitnp' },
-  { label: 'Todo', icon: ListTodo },
+  { label: 'Project', icon: FolderKanban, to: 'project' },
   { label: 'Settings', icon: Settings, to: 'settings' },
 ]
 

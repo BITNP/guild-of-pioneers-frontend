@@ -87,6 +87,12 @@ export function updateProfile(profile: UpdateProfileInput): Promise<User> {
   })
 }
 
+export interface UserSummary {
+  id: number
+  userName: string
+  avatar: string | null
+}
+
 export interface Project {
   id: number
   title: string
@@ -97,8 +103,32 @@ export interface Project {
   endDate: string | null
   leaderIds: number[]
   memberIds: number[]
+  leaders: UserSummary[]
+  members: UserSummary[]
+}
+
+export interface Task {
+  id: number
+  projectId: number
+  title: string
+  description: string | null
+  createdDate: string
+  updatedDate: string
+  endDate: string | null
+  leaderIds: number[]
+  memberIds: number[]
+  leaders: UserSummary[]
+  members: UserSummary[]
 }
 
 export function fetchProjects(): Promise<Project[]> {
   return apiFetch<Project[]>('/api/todo/projects')
+}
+
+export function fetchProject(id: number): Promise<Project> {
+  return apiFetch<Project>(`/api/todo/projects/${id}`)
+}
+
+export function fetchTasks(projectId: number): Promise<Task[]> {
+  return apiFetch<Task[]>(`/api/todo/tasks?projectId=${projectId}`)
 }

@@ -12,7 +12,8 @@ const items = [
 ]
 
 function isActive(item: (typeof items)[number]): boolean {
-  return 'to' in item && item.to === route.name
+  const activeName = route.name === 'project-detail' ? 'project' : route.name
+  return 'to' in item && item.to === activeName
 }
 </script>
 

@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { FolderKanban } from '@lucide/vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import { fetchProjects, type Project } from '@/lib/api'
+import { timeAgo } from '@/lib/utils'
 
 const projects = ref<Project[]>([])
 const loading = ref(true)
@@ -33,10 +34,11 @@ onMounted(async () => {
       <p v-else-if="projects.length === 0" class="text-sm text-muted-foreground">No projects yet.</p>
 
       <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <article
+        <RouterLink
           v-for="project in projects"
           :key="project.id"
-          class="group overflow-hidden rounded-lg border bg-card text-card-foreground"
+          :to="{ name: 'project-detail', params: { id: project.id } }"
+          class="group block overflow-hidden rounded-lg border bg-card text-card-foreground transition-shadow hover:shadow-md"
         >
           <div class="aspect-video w-full overflow-hidden bg-muted">
             <img
@@ -49,10 +51,13 @@ onMounted(async () => {
               <FolderKanban class="h-8 w-8" :stroke-width="1.5" />
             </div>
           </div>
-          <div class="p-4">
+          <div class="flex items-center gap-2 p-4">
+            <span class="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {{ timeAgo(project.updatedDate) }}
+            </span>
             <h2 class="truncate text-sm font-medium">{{ project.title }}</h2>
           </div>
-        </article>
+        </RouterLink>
       </div>
     </main>
   </div>

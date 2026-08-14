@@ -246,12 +246,14 @@ const hiddenMemberCount = computed(() => allMembers.value.length - visibleMember
         </section>
 
         <!-- Members -->
-        <section class="rounded-lg border bg-card p-4 text-card-foreground">
-          <div
-            ref="membersRow"
-            class="flex h-8 items-center gap-2 overflow-hidden"
-            :aria-label="allMembers.map((member) => member.userName).join(', ')"
-          >
+        <section class="flex flex-col gap-3">
+          <span class="text-sm font-semibold tracking-tight text-muted-foreground">Member</span>
+          <div class="rounded-lg border bg-card p-4 text-card-foreground">
+            <div
+              ref="membersRow"
+              class="flex h-8 items-center gap-2 overflow-hidden"
+              :aria-label="allMembers.map((member) => member.userName).join(', ')"
+            >
             <template v-if="allMembers.length === 0">
               <span class="text-sm text-muted-foreground">No members yet.</span>
             </template>
@@ -271,6 +273,7 @@ const hiddenMemberCount = computed(() => allMembers.value.length - visibleMember
                 …
               </div>
             </template>
+            </div>
           </div>
         </section>
 

@@ -1,10 +1,19 @@
+export type Department = 'CLINIC' | 'TECH' | 'SUPPORT' | 'MEDIA' | 'PRESIDIUM' | 'ADMIN'
+
+export type DepartmentRole = 'LEADER' | 'VICE' | 'ADVISOR' | 'MEMBER'
+
+export interface UserDepartment {
+  department: Department
+  role: DepartmentRole
+}
+
 export interface User {
   id: number
   userName: string
   avatar: string | null
   phone: string
   email: string | null
-  department: string | null
+  departments: UserDepartment[]
 }
 
 interface ApiErrorBody {
@@ -21,6 +30,13 @@ export class ApiError extends Error {
     this.name = 'ApiError'
     this.status = status
   }
+}
+
+function normalizeUser(user: User): User {
+  if (!user.departments) {
+    user.departments = []
+  }
+  return user
 }
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -55,7 +71,7 @@ export function login(username: string, password: string, rememberMe: boolean): 
   return apiFetch<User>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username, password, rememberMe }),
-  })
+  }).then(normalizeUser)
 }
 
 export function logout(): Promise<void> {
@@ -63,11 +79,11 @@ export function logout(): Promise<void> {
 }
 
 export function fetchMe(): Promise<User> {
-  return apiFetch<User>('/api/auth/me')
+  return apiFetch<User>('/api/auth/me').then(normalizeUser)
 }
 
 export function fetchUser(id: number): Promise<User> {
-  return apiFetch<User>(`/api/users/${id}`)
+  return apiFetch<User>(`/api/users/${id}`).then(normalizeUser)
 }
 
 export function uploadAvatar(file: File): Promise<User> {
@@ -76,7 +92,7 @@ export function uploadAvatar(file: File): Promise<User> {
   return apiFetch<User>('/api/auth/avatar', {
     method: 'PUT',
     body,
-  })
+  }).then(normalizeUser)
 }
 
 export interface UpdateProfileInput {
@@ -88,7 +104,7 @@ export function updateProfile(profile: UpdateProfileInput): Promise<User> {
   return apiFetch<User>('/api/auth/profile', {
     method: 'PUT',
     body: JSON.stringify(profile),
-  })
+  }).then(normalizeUser)
 }
 
 export interface UserSummary {

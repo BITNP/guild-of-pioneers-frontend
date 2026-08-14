@@ -251,7 +251,17 @@ async function onCropConfirm(file: File) {
           </div>
           <div class="flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2">
             <span class="text-xs text-muted-foreground">Department</span>
-            <span class="text-sm font-medium">{{ displayUser.department ?? 'null' }}</span>
+            <span v-if="displayUser.departments.length" class="text-sm font-medium">
+              {{ displayUser.departments.map(d => d.department).join(', ') }}
+            </span>
+            <span v-else class="text-sm font-medium">—</span>
+          </div>
+          <div class="flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2">
+            <span class="text-xs text-muted-foreground">Role</span>
+            <span v-if="displayUser.departments.length" class="text-sm font-medium">
+              {{ displayUser.departments.map(d => d.role).join(', ') }}
+            </span>
+            <span v-else class="text-sm font-medium">—</span>
           </div>
         </div>
 

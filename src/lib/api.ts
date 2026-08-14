@@ -66,6 +66,10 @@ export function fetchMe(): Promise<User> {
   return apiFetch<User>('/api/auth/me')
 }
 
+export function fetchUser(id: number): Promise<User> {
+  return apiFetch<User>(`/api/users/${id}`)
+}
+
 export function uploadAvatar(file: File): Promise<User> {
   const body = new FormData()
   body.append('file', file)

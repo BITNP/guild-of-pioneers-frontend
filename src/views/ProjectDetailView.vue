@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppSidebar from '@/components/AppSidebar.vue'
-import UserAvatar from '@/components/UserAvatar.vue'
+import UserBadge from '@/components/UserBadge.vue'
 import { ApiError, fetchProject, fetchTasks, type Project, type Task, type UserSummary } from '@/lib/api'
 import { formatDate, timeAgo } from '@/lib/utils'
 
@@ -111,10 +111,12 @@ const hiddenMemberCount = computed(() => allMembers.value.length - visibleMember
           <div class="mt-4 flex flex-wrap items-center gap-2">
             <span class="text-xs font-medium text-muted-foreground">Leader</span>
             <span v-if="project.leaders.length === 0" class="text-sm text-muted-foreground">—</span>
-            <span v-for="leader in project.leaders" :key="leader.id" class="inline-flex items-center gap-1.5">
-              <UserAvatar :name="leader.userName" :avatar="leader.avatar" size-class="h-6 w-6 text-[10px]" />
-              <span class="text-sm font-medium">{{ leader.userName }}</span>
-            </span>
+            <UserBadge
+              v-for="leader in project.leaders"
+              :key="leader.id"
+              :user="leader"
+              avatar-size-class="h-6 w-6 text-[10px]"
+            />
           </div>
 
           <p class="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">
@@ -151,12 +153,12 @@ const hiddenMemberCount = computed(() => allMembers.value.length - visibleMember
               <span class="text-sm text-muted-foreground">No members yet.</span>
             </template>
             <template v-else>
-              <UserAvatar
+              <UserBadge
                 v-for="member in visibleMembers"
                 :key="member.id"
-                :name="member.userName"
-                :avatar="member.avatar"
-                size-class="h-8 w-8 text-xs"
+                :user="member"
+                :show-name="false"
+                avatar-size-class="h-8 w-8 text-xs"
               />
               <div
                 v-if="hiddenMemberCount > 0"
@@ -181,10 +183,13 @@ const hiddenMemberCount = computed(() => allMembers.value.length - visibleMember
             <h3 class="truncate text-sm font-medium">{{ task.title }}</h3>
             <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span v-if="task.leaders.length === 0">No leader</span>
-              <span v-for="leader in task.leaders" :key="leader.id" class="inline-flex items-center gap-1.5">
-                <UserAvatar :name="leader.userName" :avatar="leader.avatar" size-class="h-5 w-5 text-[10px]" />
-                <span class="font-medium text-foreground/80">{{ leader.userName }}</span>
-              </span>
+              <UserBadge
+                v-for="leader in task.leaders"
+                :key="leader.id"
+                :user="leader"
+                avatar-size-class="h-5 w-5 text-[10px]"
+                name-class="font-medium text-foreground/80"
+              />
               <span>updated {{ timeAgo(task.updatedDate) }}</span>
             </div>
           </article>

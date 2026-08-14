@@ -1,12 +1,24 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Camera, Pencil } from '@lucide/vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import AvatarCropper from '@/components/AvatarCropper.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { useAuth } from '@/composables/useAuth'
-import { ApiError } from '@/lib/api'
+import { ApiError, fetchUser, type User } from '@/lib/api'
 
+const route = useRoute()
 const { user, refresh, uploadAvatar, updateProfile } = useAuth()
+
+const isOwnProfile = computed(() => route.name === 'account')
+const profileId = computed(() => Number(route.params.id))
+
+const profile = ref<User | null>(null)
+const loading = ref(false)
+const error = ref<string | null>(null)
+
+const displayUser = computed<User | null>(() => (isOwnProfile.value ? user.value : profile.value))
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_SIZE = 5 * 1024 * 1024
@@ -26,11 +38,30 @@ const editForm = reactive({
   email: '',
 })
 
-onMounted(async () => {
-  if (user.value === null) {
-    await refresh()
+async function load() {
+  if (isOwnProfile.value) {
+    if (user.value === null) {
+      await refresh()
+    }
+    return
   }
-})
+  loading.value = true
+  error.value = null
+  try {
+    profile.value = await fetchUser(profileId.value)
+  } catch (err) {
+    profile.value = null
+    error.value =
+      err instanceof ApiError && err.status === 404
+        ? 'User not found.'
+        : 'Failed to load user.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(load)
+watch(() => route.fullPath, load)
 
 function startEdit() {
   if (!user.value) return
@@ -130,43 +161,46 @@ async function onCropConfirm(file: File) {
     <AppSidebar />
     <main class="flex flex-1 flex-col gap-6 p-8">
       <header>
-        <h1 class="text-2xl font-semibold tracking-tight">My BITNP</h1>
-        <p class="text-sm text-muted-foreground">Your account information.</p>
+        <h1 class="text-2xl font-semibold tracking-tight">
+          {{ isOwnProfile ? 'My Account' : (displayUser?.userName ?? 'User') }}
+        </h1>
+        <p class="text-sm text-muted-foreground">
+          {{ isOwnProfile ? 'Your account information.' : 'User profile.' }}
+        </p>
       </header>
 
-      <div v-if="user" class="flex flex-col gap-5 rounded-lg border border-border bg-card p-6 shadow-sm">
+      <p v-if="loading" class="text-sm text-muted-foreground">Loading…</p>
+      <p v-else-if="error" class="text-sm text-destructive">{{ error }}</p>
+      <p v-else-if="!displayUser" class="text-sm text-muted-foreground">Loading your information…</p>
+
+      <div v-else class="flex flex-col gap-5 rounded-lg border border-border bg-card p-6 shadow-sm">
         <div class="flex flex-wrap items-center gap-4">
           <div class="group relative">
-            <img
-              v-if="user.avatar"
-              :src="user.avatar"
-              :alt="`${user.userName}'s avatar`"
-              class="h-14 w-14 rounded-full object-cover"
-            >
-            <div
-              v-else
-              class="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground"
-            >
-              {{ user.userName.charAt(0).toUpperCase() }}
-            </div>
+            <UserAvatar
+              :name="displayUser.userName"
+              :avatar="displayUser.avatar"
+              size-class="h-14 w-14 text-lg font-bold"
+            />
             <button
+              v-if="isOwnProfile"
               type="button"
               class="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
-              :aria-label="`Change ${user.userName}'s avatar`"
+              :aria-label="`Change ${displayUser.userName}'s avatar`"
               @click="openFilePicker"
             >
               <Camera class="h-5 w-5" :stroke-width="2" />
             </button>
           </div>
           <div class="flex flex-1 flex-col gap-1">
-            <h2 class="text-lg font-semibold">{{ user.userName }}</h2>
+            <h2 class="text-lg font-semibold">{{ displayUser.userName }}</h2>
             <div class="flex flex-wrap items-center gap-2">
               <span class="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                #{{ user.id }}
+                #{{ displayUser.id }}
               </span>
             </div>
           </div>
           <button
+            v-if="isOwnProfile"
             type="button"
             class="ml-auto inline-flex h-9 items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
             @click="isEditing ? cancelEdit() : startEdit()"
@@ -196,28 +230,28 @@ async function onCropConfirm(file: File) {
           <div class="flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2">
             <label for="profile-phone" class="text-xs text-muted-foreground">Phone</label>
             <input
-              v-if="isEditing"
+              v-if="isOwnProfile && isEditing"
               id="profile-phone"
               v-model="editForm.phone"
               type="text"
               class="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-medium shadow-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
             >
-            <span v-else class="text-sm font-medium">{{ user.phone }}</span>
+            <span v-else class="text-sm font-medium">{{ displayUser.phone }}</span>
           </div>
           <div class="flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2">
             <label for="profile-email" class="text-xs text-muted-foreground">Email</label>
             <input
-              v-if="isEditing"
+              v-if="isOwnProfile && isEditing"
               id="profile-email"
               v-model="editForm.email"
               type="email"
               class="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-medium shadow-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
             >
-            <span v-else class="text-sm font-medium">{{ user.email ?? '—' }}</span>
+            <span v-else class="text-sm font-medium">{{ displayUser.email ?? '—' }}</span>
           </div>
           <div class="flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2">
             <span class="text-xs text-muted-foreground">Department</span>
-            <span class="text-sm font-medium">{{ user.department ?? 'null' }}</span>
+            <span class="text-sm font-medium">{{ displayUser.department ?? 'null' }}</span>
           </div>
         </div>
 
@@ -229,7 +263,7 @@ async function onCropConfirm(file: File) {
           {{ editError }}
         </p>
 
-        <div v-if="isEditing" class="flex justify-end">
+        <div v-if="isOwnProfile && isEditing" class="flex justify-end">
           <button
             type="button"
             class="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
@@ -240,8 +274,6 @@ async function onCropConfirm(file: File) {
           </button>
         </div>
       </div>
-
-      <p v-else class="text-sm text-muted-foreground">Loading your information…</p>
     </main>
 
     <AvatarCropper

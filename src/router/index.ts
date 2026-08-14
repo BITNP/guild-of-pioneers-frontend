@@ -21,9 +21,18 @@ const router = createRouter({
       component: () => import('@/views/SettingsView.vue'),
     },
     {
+      path: '/account',
+      name: 'account',
+      component: () => import('@/views/UserView.vue'),
+    },
+    {
+      path: '/users/:id',
+      name: 'user',
+      component: () => import('@/views/UserView.vue'),
+    },
+    {
       path: '/my-bitnp',
-      name: 'my-bitnp',
-      component: () => import('@/views/MyBitnpView.vue'),
+      redirect: { name: 'account' },
     },
     {
       path: '/projects',

@@ -13,6 +13,7 @@ const MAX_SIZE = 5 * 1024 * 1024
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const cropSrc = ref<string | null>(null)
+const cropFile = ref<File | null>(null)
 const cropLoading = ref(false)
 const cropError = ref<string | null>(null)
 const fileError = ref('')
@@ -94,12 +95,14 @@ function onFileChange(event: Event) {
   }
 
   cropSrc.value = URL.createObjectURL(file)
+  cropFile.value = file
   cropError.value = null
 }
 
 function closeCrop() {
   if (cropSrc.value) URL.revokeObjectURL(cropSrc.value)
   cropSrc.value = null
+  cropFile.value = null
   cropError.value = null
 }
 
@@ -244,10 +247,12 @@ async function onCropConfirm(file: File) {
     <AvatarCropper
       v-if="cropSrc"
       :src="cropSrc"
+      :file="cropFile"
       :loading="cropLoading"
       :error="cropError"
       @confirm="onCropConfirm"
       @cancel="closeCrop"
+      @error="(message) => (fileError = message)"
     />
   </div>
 </template>

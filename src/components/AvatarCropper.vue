@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Cropper } from 'vue-advanced-cropper'
+import { Cropper, type CropperResult } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
+import { decodeGifFrames, encodeCroppedGif, type CropRect } from '@/lib/gifAvatar'
 
 type CropperInstance = InstanceType<typeof Cropper>
 
 const props = defineProps<{
   src: string
+  file?: File | null
   loading?: boolean
   error?: string | null
 }>()
@@ -15,9 +17,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   confirm: [file: File]
   cancel: []
+  error: [message: string]
 }>()
 
 const cropperRef = ref<CropperInstance | null>(null)
+const busy = ref(false)
 
 const stencilProps = {
   movable: true,
@@ -29,11 +33,26 @@ const stencilProps = {
   aspectRatio: 1,
 }
 
-function confirm() {
-  if (props.loading) return
-  const sourceCanvas = cropperRef.value?.getResult()?.canvas
-  if (!sourceCanvas) return
+async function confirm() {
+  if (props.loading || busy.value) return
+  const result = cropperRef.value?.getResult()
+  if (!result?.canvas) return
 
+  if (props.file?.type === 'image/gif') {
+    busy.value = true
+    try {
+      const blob = await cropGif(result)
+      emit('confirm', new File([blob], 'avatar.gif', { type: 'image/gif' }))
+    } catch (error) {
+      emit('error', 'Could not preserve GIF animation. The first frame was uploaded instead.')
+      emit('confirm', new File([toPngBlob(result.canvas)], 'avatar.png', { type: 'image/png' }))
+    } finally {
+      busy.value = false
+    }
+    return
+  }
+
+  const sourceCanvas = result.canvas
   const canvas = document.createElement('canvas')
   canvas.width = 512
   canvas.height = 512
@@ -46,6 +65,37 @@ function confirm() {
     if (!blob) return
     emit('confirm', new File([blob], 'avatar.png', { type: 'image/png' }))
   }, 'image/png')
+}
+
+function toPngBlob(sourceCanvas: HTMLCanvasElement): Blob {
+  const canvas = document.createElement('canvas')
+  canvas.width = 512
+  canvas.height = 512
+  const ctx = canvas.getContext('2d')
+  ctx?.drawImage(sourceCanvas, 0, 0, 512, 512)
+  const dataUrl = canvas.toDataURL('image/png')
+  const binary = atob(dataUrl.split(',')[1])
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return new Blob([bytes], { type: 'image/png' })
+}
+
+async function cropGif(result: CropperResult): Promise<Blob> {
+  const file = props.file
+  if (!file) throw new Error('Missing GIF file')
+  const buffer = await file.arrayBuffer()
+  const decoded = await decodeGifFrames(buffer)
+  const scaleX = result.image.width > 0 ? decoded.width / result.image.width : 1
+  const scaleY = result.image.height > 0 ? decoded.height / result.image.height : 1
+  const crop: CropRect = {
+    left: result.coordinates.left * scaleX,
+    top: result.coordinates.top * scaleY,
+    width: result.coordinates.width * scaleX,
+    height: result.coordinates.height * scaleY,
+  }
+  return encodeCroppedGif(decoded.frames, crop, decoded.width, decoded.height, 512)
 }
 
 function onOpenChange(open: boolean) {
@@ -84,7 +134,7 @@ function onOpenChange(open: boolean) {
           <button
             type="button"
             class="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
-            :disabled="loading"
+            :disabled="loading || busy"
             @click="emit('cancel')"
           >
             Cancel
@@ -92,10 +142,10 @@ function onOpenChange(open: boolean) {
           <button
             type="button"
             class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-            :disabled="loading"
+            :disabled="loading || busy"
             @click="confirm"
           >
-            {{ loading ? 'Uploading…' : 'Confirm' }}
+            {{ loading || busy ? 'Processing…' : 'Confirm' }}
           </button>
         </div>
       </DialogContent>

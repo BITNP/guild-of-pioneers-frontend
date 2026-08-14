@@ -133,6 +133,20 @@ export function fetchProject(id: number): Promise<Project> {
   return apiFetch<Project>(`/api/todo/projects/${id}`)
 }
 
+export interface UpdateProjectInput {
+  title: string
+  description: string | null
+}
+
+export type UpdateProjectResult = Omit<Project, 'leaders' | 'members'>
+
+export function updateProject(id: number, input: UpdateProjectInput): Promise<UpdateProjectResult> {
+  return apiFetch<UpdateProjectResult>(`/api/todo/projects/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
 export function fetchTasks(projectId: number): Promise<Task[]> {
   return apiFetch<Task[]>(`/api/todo/tasks?projectId=${projectId}`)
 }

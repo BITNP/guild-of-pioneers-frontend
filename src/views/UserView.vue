@@ -9,10 +9,13 @@ import { useAuth } from '@/composables/useAuth'
 import { ApiError, fetchUser, type User } from '@/lib/api'
 
 const route = useRoute()
-const { user, refresh, uploadAvatar, updateProfile } = useAuth()
+const { user, refresh, uploadAvatar, updateProfile, updateUserProfile, uploadUserAvatar } = useAuth()
 
 const isOwnProfile = computed(() => route.name === 'account')
 const profileId = computed(() => Number(route.params.id))
+
+const isAdmin = computed(() => user.value?.departments.some((d) => d.department === 'ADMIN') ?? false)
+const canEdit = computed(() => isOwnProfile.value || isAdmin.value)
 
 const profile = ref<User | null>(null)
 const loading = ref(false)
@@ -64,9 +67,9 @@ onMounted(load)
 watch(() => route.fullPath, load)
 
 function startEdit() {
-  if (!user.value) return
-  editForm.phone = user.value.phone
-  editForm.email = user.value.email ?? ''
+  if (!displayUser.value) return
+  editForm.phone = displayUser.value.phone
+  editForm.email = displayUser.value.email ?? ''
   editError.value = null
   isEditing.value = true
 }
@@ -77,14 +80,20 @@ function cancelEdit() {
 }
 
 async function onSaveEdit() {
-  if (!user.value) return
+  if (!user.value || !displayUser.value) return
   editError.value = null
   saving.value = true
   try {
-    await updateProfile({
+    const input = {
       phone: editForm.phone,
       email: editForm.email.trim() || null,
-    })
+    }
+    const updated = isOwnProfile.value
+      ? await updateProfile(input)
+      : await updateUserProfile(profileId.value, input)
+    if (!isOwnProfile.value) {
+      profile.value = updated
+    }
     isEditing.value = false
   } catch (error) {
     if (error instanceof ApiError && error.status === 409) {
@@ -141,7 +150,12 @@ async function onCropConfirm(file: File) {
   cropLoading.value = true
   cropError.value = null
   try {
-    await uploadAvatar(file)
+    const updated = isOwnProfile.value
+      ? await uploadAvatar(file)
+      : await uploadUserAvatar(profileId.value, file)
+    if (!isOwnProfile.value) {
+      profile.value = updated
+    }
     closeCrop()
   } catch (error) {
     cropError.value =
@@ -182,7 +196,7 @@ async function onCropConfirm(file: File) {
               size-class="h-14 w-14 text-lg font-bold"
             />
             <button
-              v-if="isOwnProfile"
+              v-if="canEdit"
               type="button"
               class="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none"
               :aria-label="`Change ${displayUser.userName}'s avatar`"
@@ -200,7 +214,7 @@ async function onCropConfirm(file: File) {
             </div>
           </div>
           <button
-            v-if="isOwnProfile"
+            v-if="canEdit"
             type="button"
             class="ml-auto inline-flex h-9 items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
             @click="isEditing ? cancelEdit() : startEdit()"
@@ -230,7 +244,7 @@ async function onCropConfirm(file: File) {
           <div class="flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2">
             <label for="profile-phone" class="text-xs text-muted-foreground">Phone</label>
             <input
-              v-if="isOwnProfile && isEditing"
+              v-if="canEdit && isEditing"
               id="profile-phone"
               v-model="editForm.phone"
               type="text"
@@ -241,7 +255,7 @@ async function onCropConfirm(file: File) {
           <div class="flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2">
             <label for="profile-email" class="text-xs text-muted-foreground">Email</label>
             <input
-              v-if="isOwnProfile && isEditing"
+              v-if="canEdit && isEditing"
               id="profile-email"
               v-model="editForm.email"
               type="email"
@@ -273,7 +287,7 @@ async function onCropConfirm(file: File) {
           {{ editError }}
         </p>
 
-        <div v-if="isOwnProfile && isEditing" class="flex justify-end">
+        <div v-if="canEdit && isEditing" class="flex justify-end">
           <button
             type="button"
             class="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"

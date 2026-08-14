@@ -32,6 +32,12 @@ const isLeader = computed(() => {
   return project.value.leaderIds.includes(user.value.id)
 })
 
+const isAdmin = computed(() => {
+  return user.value?.departments.some((d) => d.department === 'ADMIN') ?? false
+})
+
+const canEdit = computed(() => isLeader.value || isAdmin.value)
+
 const projectId = computed(() => Number(route.params.id))
 
 async function load() {
@@ -89,7 +95,7 @@ async function onSaveEdit() {
     if (err instanceof ApiError && err.status === 400) {
       editError.value = err.message
     } else if (err instanceof ApiError && err.status === 403) {
-      editError.value = 'You must be a project leader to edit this project.'
+      editError.value = 'You do not have permission to edit this project.'
     } else if (err instanceof ApiError && err.status >= 500) {
       editError.value = 'Something went wrong on our end. Please try again later.'
     } else if (err instanceof Error) {
@@ -177,7 +183,7 @@ const hiddenMemberCount = computed(() => allMembers.value.length - visibleMember
               >
             </div>
             <button
-              v-if="isLeader"
+              v-if="canEdit"
               type="button"
               class="ml-auto inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
               @click="isEditing ? cancelEdit() : startEdit()"

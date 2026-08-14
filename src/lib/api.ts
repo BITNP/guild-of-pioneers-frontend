@@ -107,6 +107,22 @@ export function updateProfile(profile: UpdateProfileInput): Promise<User> {
   }).then(normalizeUser)
 }
 
+export function updateUserProfile(id: number, profile: UpdateProfileInput): Promise<User> {
+  return apiFetch<User>(`/api/users/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(profile),
+  }).then(normalizeUser)
+}
+
+export function uploadUserAvatar(id: number, file: File): Promise<User> {
+  const body = new FormData()
+  body.append('file', file)
+  return apiFetch<User>(`/api/users/${id}/avatar`, {
+    method: 'PUT',
+    body,
+  }).then(normalizeUser)
+}
+
 export interface UserSummary {
   id: number
   userName: string

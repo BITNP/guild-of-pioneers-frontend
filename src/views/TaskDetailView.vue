@@ -52,6 +52,17 @@ async function load() {
 
 onMounted(load)
 
+// Finished actions (those with an end date) sink to the bottom; each group is
+// ordered by last update time, newest first.
+const sortedActions = computed(() =>
+  [...actions.value].sort((a, b) => {
+    const aDone = a.endDate != null ? 1 : 0
+    const bDone = b.endDate != null ? 1 : 0
+    if (aDone !== bDone) return aDone - bDone
+    return new Date(b.updatedDate).getTime() - new Date(a.updatedDate).getTime()
+  }),
+)
+
 // Members row: leaders first, then members, deduplicated by user id.
 const allMembers = computed<UserSummary[]>(() => {
   const current = task.value
@@ -156,11 +167,16 @@ const allMembers = computed<UserSummary[]>(() => {
           <h2 class="text-sm font-semibold tracking-tight text-muted-foreground">Actions</h2>
           <p v-if="actions.length === 0" class="text-sm text-muted-foreground">No actions yet.</p>
           <article
-            v-for="action in actions"
+            v-for="action in sortedActions"
             :key="action.id"
             class="rounded-lg border bg-card p-4 text-card-foreground"
           >
-            <h3 class="truncate text-sm font-medium">{{ action.title }}</h3>
+            <h3
+              class="truncate text-sm font-medium"
+              :class="{ 'text-muted-foreground line-through': action.endDate != null }"
+            >
+              {{ action.title }}
+            </h3>
             <p v-if="action.description" class="mt-1 line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">
               {{ action.description }}
             </p>

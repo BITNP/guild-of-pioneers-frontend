@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Pencil } from '@lucide/vue'
+import { Pencil, Plus } from '@lucide/vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import UserBadge from '@/components/UserBadge.vue'
 import { useAuth } from '@/composables/useAuth'
@@ -29,6 +29,13 @@ const isAdmin = computed(() => {
 })
 
 const canEdit = computed(() => isLeader.value || isAdmin.value)
+
+const canAddTask = computed(() => {
+  if (!user.value || !project.value) return false
+  return isAdmin.value
+    || project.value.leaderIds.includes(user.value.id)
+    || project.value.memberIds.includes(user.value.id)
+})
 
 const projectId = computed(() => Number(route.params.id))
 
@@ -223,5 +230,14 @@ const hiddenMemberCount = computed(() => allMembers.value.length - visibleMember
         </section>
       </template>
     </main>
+
+    <RouterLink
+      v-if="canAddTask"
+      :to="{ name: 'task-create', params: { id: project?.id } }"
+      class="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label="Add a task"
+    >
+      <Plus class="h-6 w-6" :stroke-width="2" />
+    </RouterLink>
   </div>
 </template>

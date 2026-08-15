@@ -217,3 +217,38 @@ export function uploadProjectCover(id: number, file: File): Promise<UpdateProjec
 export function fetchTasks(projectId: number): Promise<Task[]> {
   return apiFetch<Task[]>(`/api/todo/tasks?projectId=${projectId}`)
 }
+
+export function fetchTask(id: number): Promise<Task> {
+  return apiFetch<Task>(`/api/todo/tasks/${id}`)
+}
+
+export interface CreateTaskInput {
+  projectId: number
+  title: string
+  description: string | null
+  leaderIds: number[]
+  memberIds: number[]
+}
+
+export interface UpdateTaskInput {
+  title: string
+  description: string | null
+  leaderIds?: number[]
+  memberIds?: number[]
+}
+
+export type TaskUpdateResult = Omit<Task, 'leaders' | 'members'>
+
+export function createTask(input: CreateTaskInput): Promise<TaskUpdateResult> {
+  return apiFetch<TaskUpdateResult>('/api/todo/tasks', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function updateTask(id: number, input: UpdateTaskInput): Promise<TaskUpdateResult> {
+  return apiFetch<TaskUpdateResult>(`/api/todo/tasks/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}

@@ -209,10 +209,11 @@ const hiddenMemberCount = computed(() => allMembers.value.length - visibleMember
         <section class="flex flex-col gap-3">
           <h2 class="text-sm font-semibold tracking-tight text-muted-foreground">Tasks</h2>
           <p v-if="tasks.length === 0" class="text-sm text-muted-foreground">No tasks yet.</p>
-          <article
+          <RouterLink
             v-for="task in tasks"
             :key="task.id"
-            class="rounded-lg border bg-card p-4 text-card-foreground"
+            :to="{ name: 'task-detail', params: { id: project.id, taskId: task.id } }"
+            class="block rounded-lg border bg-card p-4 text-card-foreground transition-colors hover:bg-accent/50"
           >
             <h3 class="truncate text-sm font-medium">{{ task.title }}</h3>
             <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -226,7 +227,7 @@ const hiddenMemberCount = computed(() => allMembers.value.length - visibleMember
               />
               <span>updated {{ timeAgo(task.updatedDate) }}</span>
             </div>
-          </article>
+          </RouterLink>
         </section>
       </template>
     </main>

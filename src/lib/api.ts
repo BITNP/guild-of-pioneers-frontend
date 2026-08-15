@@ -214,8 +214,23 @@ export function uploadProjectCover(id: number, file: File): Promise<UpdateProjec
   })
 }
 
+export interface Action {
+  id: number
+  taskId: number
+  title: string
+  description: string | null
+  createdDate: string
+  updatedDate: string
+  endDate: string | null
+  memberIds: number[]
+}
+
 export function fetchTasks(projectId: number): Promise<Task[]> {
   return apiFetch<Task[]>(`/api/todo/tasks?projectId=${projectId}`)
+}
+
+export function fetchActions(taskId: number): Promise<Action[]> {
+  return apiFetch<Action[]>(`/api/todo/actions?taskId=${taskId}`)
 }
 
 export function fetchTask(id: number): Promise<Task> {

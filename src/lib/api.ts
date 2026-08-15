@@ -233,6 +233,49 @@ export function fetchActions(taskId: number): Promise<Action[]> {
   return apiFetch<Action[]>(`/api/todo/actions?taskId=${taskId}`)
 }
 
+export function fetchAction(id: number): Promise<Action> {
+  return apiFetch<Action>(`/api/todo/actions/${id}`)
+}
+
+export interface CreateActionInput {
+  taskId: number
+  title: string
+  description: string | null
+  memberIds: number[]
+}
+
+export interface UpdateActionInput {
+  title: string
+  description: string | null
+  memberIds?: number[]
+}
+
+export function createAction(input: CreateActionInput): Promise<Action> {
+  return apiFetch<Action>('/api/todo/actions', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function updateAction(id: number, input: UpdateActionInput): Promise<Action> {
+  return apiFetch<Action>(`/api/todo/actions/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+export function finishAction(id: number): Promise<Action> {
+  return apiFetch<Action>(`/api/todo/actions/${id}/finish`, {
+    method: 'PUT',
+  })
+}
+
+export function unfinishAction(id: number): Promise<Action> {
+  return apiFetch<Action>(`/api/todo/actions/${id}/finish`, {
+    method: 'DELETE',
+  })
+}
+
 export function fetchTask(id: number): Promise<Task> {
   return apiFetch<Task>(`/api/todo/tasks/${id}`)
 }

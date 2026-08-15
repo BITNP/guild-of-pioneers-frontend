@@ -13,7 +13,12 @@ const items = [
 
 function isActive(item: (typeof items)[number]): boolean {
   const activeName =
-    route.name === 'project-detail' || route.name === 'task-detail' ? 'project' : route.name
+    route.name === 'project-detail'
+    || route.name === 'task-detail'
+    || route.name === 'action-create'
+    || route.name === 'action-edit'
+      ? 'project'
+      : route.name
   return 'to' in item && item.to === activeName
 }
 </script>

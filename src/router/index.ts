@@ -65,6 +65,16 @@ const router = createRouter({
       component: () => import('@/views/TaskDetailView.vue'),
     },
     {
+      path: '/projects/:id/tasks/:taskId/actions/create',
+      name: 'action-create',
+      component: () => import('@/views/ActionCreateView.vue'),
+    },
+    {
+      path: '/projects/:id/tasks/:taskId/actions/:actionId/edit',
+      name: 'action-edit',
+      component: () => import('@/views/ActionCreateView.vue'),
+    },
+    {
       path: '/projects/:id',
       name: 'project-detail',
       component: () => import('@/views/ProjectDetailView.vue'),

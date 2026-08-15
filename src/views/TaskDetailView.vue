@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Pencil } from '@lucide/vue'
+import { Plus, Pencil } from '@lucide/vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import UserBadge from '@/components/UserBadge.vue'
 import { useAuth } from '@/composables/useAuth'
@@ -23,6 +23,13 @@ const isAdmin = computed(() => {
 const canEdit = computed(() => {
   if (!user.value || !task.value) return false
   return isAdmin.value || task.value.leaderIds.includes(user.value.id)
+})
+
+const canAddAction = computed(() => {
+  if (!user.value || !task.value) return false
+  return isAdmin.value
+    || task.value.leaderIds.includes(user.value.id)
+    || task.value.memberIds.includes(user.value.id)
 })
 
 const projectId = computed(() => Number(route.params.id))
@@ -166,10 +173,11 @@ const allMembers = computed<UserSummary[]>(() => {
         <section class="flex flex-col gap-3">
           <h2 class="text-sm font-semibold tracking-tight text-muted-foreground">Actions</h2>
           <p v-if="actions.length === 0" class="text-sm text-muted-foreground">No actions yet.</p>
-          <article
+          <RouterLink
             v-for="action in sortedActions"
             :key="action.id"
-            class="rounded-lg border bg-card p-4 text-card-foreground"
+            :to="{ name: 'action-edit', params: { id: projectId, taskId: task.id, actionId: action.id } }"
+            class="block rounded-lg border bg-card p-4 text-card-foreground transition-colors hover:bg-accent/50"
           >
             <h3
               class="truncate text-sm font-medium"
@@ -185,9 +193,18 @@ const allMembers = computed<UserSummary[]>(() => {
               <span v-else>{{ action.memberIds.length }} member{{ action.memberIds.length > 1 ? 's' : '' }}</span>
               <span>updated {{ timeAgo(action.updatedDate) }}</span>
             </div>
-          </article>
+          </RouterLink>
         </section>
       </template>
     </main>
+
+    <RouterLink
+      v-if="canAddAction"
+      :to="{ name: 'action-create', params: { id: projectId, taskId: task?.id } }"
+      class="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label="Add an action"
+    >
+      <Plus class="h-6 w-6" :stroke-width="2" />
+    </RouterLink>
   </div>
 </template>

@@ -34,6 +34,7 @@ const title = ref('')
 const description = ref('')
 
 const allUsers = ref<UserSummary[]>([])
+const projectData = ref<Project | null>(null)
 const leaderIds = ref<number[]>([])
 const memberIds = ref<number[]>([])
 
@@ -62,6 +63,12 @@ const activeGroupIds = computed<number[]>({
 })
 const pickerExcludeIds = computed(() => (pickerGroup.value === 'leader' ? memberIds.value : leaderIds.value))
 
+const projectUsers = computed<UserSummary[]>(() => {
+  const project = projectData.value
+  if (!project) return []
+  return [...project.leaders, ...project.members]
+})
+
 const pageTitle = computed(() => (isEdit.value ? 'Edit Task' : 'New Task'))
 const backTarget = computed(() => ({ name: 'project-detail', params: { id: projectId.value } }))
 const backLabel = computed(() => 'Back to project')
@@ -72,9 +79,10 @@ const submitLabel = computed(() =>
 onMounted(async () => {
   if (isEdit.value) {
     try {
-      const [taskData, users] = await Promise.all([
+      const [taskData, users, project] = await Promise.all([
         fetchTask(taskId.value),
         fetchUsers(),
+        fetchProject(projectId.value),
       ])
       if (!canEditTask(taskData)) {
         router.replace({ name: 'project-detail', params: { id: projectId.value } })
@@ -85,6 +93,7 @@ onMounted(async () => {
       leaderIds.value = [...taskData.leaderIds]
       memberIds.value = [...taskData.memberIds]
       allUsers.value = users
+      projectData.value = project
     } catch {
       router.replace({ name: 'project-detail', params: { id: projectId.value } })
       return
@@ -95,11 +104,11 @@ onMounted(async () => {
   }
 
   try {
-    const [projectData, users] = await Promise.all([
+    const [project, users] = await Promise.all([
       fetchProject(projectId.value),
       fetchUsers(),
     ])
-    if (!canCreateTask(projectData)) {
+    if (!canCreateTask(project)) {
       router.replace({ name: 'project-detail', params: { id: projectId.value } })
       return
     }
@@ -107,6 +116,7 @@ onMounted(async () => {
       leaderIds.value.push(creatorId.value)
     }
     allUsers.value = users
+    projectData.value = project
   } catch {
     router.replace({ name: 'project-detail', params: { id: projectId.value } })
     return
@@ -346,7 +356,7 @@ async function onSubmit() {
       v-if="pickerGroup"
       v-model="activeGroupIds"
       :title="pickerTitle"
-      :users="allUsers"
+      :users="projectUsers"
       :exclude-ids="pickerExcludeIds"
       @close="closePicker"
     />

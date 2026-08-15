@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Pencil } from '@lucide/vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import UserBadge from '@/components/UserBadge.vue'
 import { useAuth } from '@/composables/useAuth'
-import { ApiError, fetchProject, fetchTasks, updateProject, type Project, type Task, type UserSummary } from '@/lib/api'
+import { ApiError, fetchProject, fetchTasks, type Project, type Task, type UserSummary } from '@/lib/api'
 import { formatDate, timeAgo } from '@/lib/utils'
 
 const AVATAR_SIZE = 32
@@ -18,14 +18,6 @@ const project = ref<Project | null>(null)
 const tasks = ref<Task[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
-
-const isEditing = ref(false)
-const saving = ref(false)
-const editError = ref<string | null>(null)
-const editForm = reactive({
-  title: '',
-  description: '',
-})
 
 const isLeader = computed(() => {
   if (!user.value || !project.value) return false
@@ -43,8 +35,6 @@ const projectId = computed(() => Number(route.params.id))
 async function load() {
   loading.value = true
   error.value = null
-  isEditing.value = false
-  editError.value = null
   try {
     const [projectData, taskData] = await Promise.all([
       fetchProject(projectId.value),
@@ -66,47 +56,6 @@ async function load() {
 
 onMounted(load)
 watch(projectId, load)
-
-function startEdit() {
-  if (!project.value) return
-  editForm.title = project.value.title
-  editForm.description = project.value.description ?? ''
-  editError.value = null
-  isEditing.value = true
-}
-
-function cancelEdit() {
-  isEditing.value = false
-  editError.value = null
-}
-
-async function onSaveEdit() {
-  if (!project.value) return
-  editError.value = null
-  saving.value = true
-  try {
-    const updated = await updateProject(project.value.id, {
-      title: editForm.title,
-      description: editForm.description.trim() || null,
-    })
-    project.value = { ...project.value, ...updated }
-    isEditing.value = false
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 400) {
-      editError.value = err.message
-    } else if (err instanceof ApiError && err.status === 403) {
-      editError.value = 'You do not have permission to edit this project.'
-    } else if (err instanceof ApiError && err.status >= 500) {
-      editError.value = 'Something went wrong on our end. Please try again later.'
-    } else if (err instanceof Error) {
-      editError.value = err.message
-    } else {
-      editError.value = 'Something went wrong. Please try again.'
-    }
-  } finally {
-    saving.value = false
-  }
-}
 
 // Members row: leaders first, then members, deduplicated by user id.
 const allMembers = computed<UserSummary[]>(() => {
@@ -172,25 +121,15 @@ const hiddenMemberCount = computed(() => allMembers.value.length - visibleMember
         <!-- Project info -->
         <section class="rounded-lg border bg-card p-6 text-card-foreground">
           <div class="flex items-start justify-between gap-4">
-            <h1 v-if="!isEditing" class="text-xl font-semibold tracking-tight">{{ project.title }}</h1>
-            <div v-else class="flex flex-1 flex-col gap-1">
-              <label for="project-title" class="text-xs text-muted-foreground">Title</label>
-              <input
-                id="project-title"
-                v-model="editForm.title"
-                type="text"
-                class="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm font-medium shadow-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-              >
-            </div>
-            <button
+            <h1 class="text-xl font-semibold tracking-tight">{{ project.title }}</h1>
+            <RouterLink
               v-if="canEdit"
-              type="button"
+              :to="{ name: 'project-edit', params: { id: project.id } }"
               class="ml-auto inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-              @click="isEditing ? cancelEdit() : startEdit()"
             >
-              <Pencil v-if="!isEditing" class="h-4 w-4" :stroke-width="2" />
-              {{ isEditing ? 'Cancel' : 'Edit' }}
-            </button>
+              <Pencil class="h-4 w-4" :stroke-width="2" />
+              Edit
+            </RouterLink>
           </div>
 
           <div class="mt-4 flex flex-wrap items-center gap-2">
@@ -204,18 +143,9 @@ const hiddenMemberCount = computed(() => allMembers.value.length - visibleMember
             />
           </div>
 
-          <p v-if="!isEditing" class="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">
+          <p class="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">
             {{ project.description ?? 'No description.' }}
           </p>
-          <div v-else class="mt-4 flex flex-col gap-1">
-            <label for="project-description" class="text-xs text-muted-foreground">Description</label>
-            <textarea
-              id="project-description"
-              v-model="editForm.description"
-              rows="4"
-              class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-            ></textarea>
-          </div>
 
           <dl class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div class="flex flex-col gap-1">
@@ -234,21 +164,6 @@ const hiddenMemberCount = computed(() => allMembers.value.length - visibleMember
               </dd>
             </div>
           </dl>
-
-          <p v-if="editError" class="mt-4 text-sm text-destructive" role="alert">
-            {{ editError }}
-          </p>
-
-          <div v-if="isEditing" class="mt-4 flex justify-end">
-            <button
-              type="button"
-              class="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-              :disabled="saving"
-              @click="onSaveEdit"
-            >
-              {{ saving ? 'Saving…' : 'Save' }}
-            </button>
-          </div>
         </section>
 
         <!-- Members -->

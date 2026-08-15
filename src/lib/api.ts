@@ -176,6 +176,8 @@ export function fetchProject(id: number): Promise<Project> {
 export interface UpdateProjectInput {
   title: string
   description: string | null
+  leaderIds?: number[]
+  memberIds?: number[]
 }
 
 export type UpdateProjectResult = Omit<Project, 'leaders' | 'members'>

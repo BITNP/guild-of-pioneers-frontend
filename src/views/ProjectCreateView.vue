@@ -1,15 +1,28 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ImagePlus, UserPlus, X } from '@lucide/vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import UserPickerDialog from '@/components/UserPickerDialog.vue'
 import { useAuth } from '@/composables/useAuth'
-import { ApiError, createProject, fetchUsers, uploadProjectCover, type UserSummary } from '@/lib/api'
+import {
+  ApiError,
+  createProject,
+  fetchProject,
+  fetchUsers,
+  updateProject,
+  uploadProjectCover,
+  type Project,
+  type UserSummary,
+} from '@/lib/api'
 
+const route = useRoute()
 const router = useRouter()
 const { user } = useAuth()
+
+const isEdit = computed(() => route.name === 'project-edit')
+const projectId = computed(() => Number(route.params.id))
 
 const isManager = computed(() => user.value?.isManager ?? false)
 
@@ -27,6 +40,7 @@ const coverInput = ref<HTMLInputElement | null>(null)
 const coverFile = ref<File | null>(null)
 const coverPreview = ref<string | null>(null)
 const coverError = ref<string | null>(null)
+const existingCoverUrl = ref<string | null>(null)
 
 const allUsers = ref<UserSummary[]>([])
 const leaderIds = ref<number[]>([])
@@ -59,7 +73,44 @@ const pickerExcludeIds = computed(() => (pickerGroup.value === 'leader' ? member
 
 let createdProjectId: number | null = null
 
+const pageTitle = computed(() => (isEdit.value ? 'Edit Project' : 'New Project'))
+const backTarget = computed(() =>
+  isEdit.value
+    ? { name: 'project-detail', params: { id: projectId.value } }
+    : { name: 'project' },
+)
+const backLabel = computed(() => (isEdit.value ? 'Back to project' : 'Back to projects'))
+const submitLabel = computed(() =>
+  isEdit.value ? (saving.value ? 'Saving…' : 'Save changes') : saving.value ? 'Creating…' : 'Create project',
+)
+
 onMounted(async () => {
+  if (isEdit.value) {
+    try {
+      const [projectData, users] = await Promise.all([
+        fetchProject(projectId.value),
+        fetchUsers(),
+      ])
+      if (!canEditProject(projectData)) {
+        router.replace({ name: 'project-detail', params: { id: projectId.value } })
+        return
+      }
+      title.value = projectData.title
+      description.value = projectData.description ?? ''
+      leaderIds.value = [...projectData.leaderIds]
+      memberIds.value = [...projectData.memberIds]
+      existingCoverUrl.value = projectData.cover
+      coverPreview.value = projectData.cover
+      allUsers.value = users
+    } catch {
+      router.replace({ name: 'project-detail', params: { id: projectId.value } })
+      return
+    } finally {
+      loading.value = false
+    }
+    return
+  }
+
   if (!isManager.value) {
     router.replace({ name: 'project' })
     return
@@ -75,6 +126,13 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+function canEditProject(projectData: Project): boolean {
+  const currentUser = user.value
+  if (!currentUser) return false
+  const isAdmin = currentUser.departments.some((d) => d.department === 'ADMIN')
+  return isAdmin || projectData.leaderIds.includes(currentUser.id)
+}
 
 onBeforeUnmount(() => {
   if (coverPreview.value) URL.revokeObjectURL(coverPreview.value)
@@ -127,13 +185,15 @@ function onCoverChange(event: Event) {
 function removeCover() {
   if (coverPreview.value) URL.revokeObjectURL(coverPreview.value)
   coverFile.value = null
-  coverPreview.value = null
+  coverPreview.value = existingCoverUrl.value
   coverError.value = null
 }
 
 function messageFor(err: unknown, fallback: string): string {
   if (err instanceof ApiError && err.status === 403) {
-    return 'You do not have permission to create projects.'
+    return isEdit.value
+      ? 'You do not have permission to edit this project.'
+      : 'You do not have permission to create projects.'
   }
   if (err instanceof ApiError && err.status === 400) {
     return err.message
@@ -156,6 +216,20 @@ async function onSubmit() {
 
   saving.value = true
   try {
+    if (isEdit.value) {
+      const id = projectId.value
+      await updateProject(id, {
+        title: title.value.trim(),
+        description: description.value.trim() || null,
+        leaderIds: [...leaderIds.value],
+        memberIds: [...memberIds.value],
+      })
+      if (coverFile.value) {
+        await uploadProjectCover(id, coverFile.value)
+      }
+      router.push({ name: 'project-detail', params: { id } })
+      return
+    }
     if (createdProjectId === null) {
       const created = await createProject({
         title: title.value.trim(),
@@ -184,12 +258,12 @@ async function onSubmit() {
       <header class="flex items-center justify-between">
         <div class="flex flex-col gap-1">
           <RouterLink
-            :to="{ name: 'project' }"
+            :to="backTarget"
             class="text-sm text-muted-foreground hover:text-foreground"
           >
-            ← Back to projects
+            ← {{ backLabel }}
           </RouterLink>
-          <h1 class="text-2xl font-semibold tracking-tight">New Project</h1>
+          <h1 class="text-2xl font-semibold tracking-tight">{{ pageTitle }}</h1>
         </div>
       </header>
 
@@ -230,6 +304,7 @@ async function onSubmit() {
                   Replace
                 </button>
                 <button
+                  v-if="coverFile"
                   type="button"
                   class="inline-flex h-8 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground"
                   @click="removeCover"
@@ -356,7 +431,7 @@ async function onSubmit() {
             class="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
             :disabled="saving"
           >
-            {{ saving ? 'Creating…' : 'Create project' }}
+            {{ submitLabel }}
           </button>
         </div>
       </form>

@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { FolderKanban } from '@lucide/vue'
+import { computed, onMounted, ref } from 'vue'
+import { FolderKanban, Plus } from '@lucide/vue'
 import AppSidebar from '@/components/AppSidebar.vue'
+import { useAuth } from '@/composables/useAuth'
 import { fetchProjects, type Project } from '@/lib/api'
 import { timeAgo } from '@/lib/utils'
+
+const { user } = useAuth()
+
+const isManager = computed(() => user.value?.isManager ?? false)
 
 const projects = ref<Project[]>([])
 const loading = ref(true)
@@ -60,5 +65,14 @@ onMounted(async () => {
         </RouterLink>
       </div>
     </main>
+
+    <RouterLink
+      v-if="isManager"
+      :to="{ name: 'project-create' }"
+      class="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label="Create a new project"
+    >
+      <Plus class="h-6 w-6" :stroke-width="2" />
+    </RouterLink>
   </div>
 </template>

@@ -14,6 +14,7 @@ export interface User {
   phone: string
   email: string | null
   departments: UserDepartment[]
+  isManager: boolean
 }
 
 interface ApiErrorBody {
@@ -35,6 +36,9 @@ export class ApiError extends Error {
 function normalizeUser(user: User): User {
   if (!user.departments) {
     user.departments = []
+  }
+  if (user.isManager === undefined) {
+    user.isManager = false
   }
   return user
 }
@@ -84,6 +88,10 @@ export function fetchMe(): Promise<User> {
 
 export function fetchUser(id: number): Promise<User> {
   return apiFetch<User>(`/api/users/${id}`).then(normalizeUser)
+}
+
+export function fetchUsers(): Promise<UserSummary[]> {
+  return apiFetch<UserSummary[]>('/api/users')
 }
 
 export function uploadAvatar(file: File): Promise<User> {
@@ -176,6 +184,31 @@ export function updateProject(id: number, input: UpdateProjectInput): Promise<Up
   return apiFetch<UpdateProjectResult>(`/api/todo/projects/${id}`, {
     method: 'PUT',
     body: JSON.stringify(input),
+  })
+}
+
+export interface CreateProjectInput {
+  title: string
+  description: string | null
+  leaderIds: number[]
+  memberIds: number[]
+}
+
+export type CreateProjectResult = UpdateProjectResult
+
+export function createProject(input: CreateProjectInput): Promise<CreateProjectResult> {
+  return apiFetch<CreateProjectResult>('/api/todo/projects', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function uploadProjectCover(id: number, file: File): Promise<UpdateProjectResult> {
+  const body = new FormData()
+  body.append('file', file)
+  return apiFetch<UpdateProjectResult>(`/api/todo/projects/${id}/cover`, {
+    method: 'PUT',
+    body,
   })
 }
 

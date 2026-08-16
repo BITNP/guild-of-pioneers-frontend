@@ -5,7 +5,7 @@ import { Plus, Pencil } from '@lucide/vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import UserBadge from '@/components/UserBadge.vue'
 import { useAuth } from '@/composables/useAuth'
-import { ApiError, fetchActions, fetchTask, type Action, type Task, type UserSummary } from '@/lib/api'
+import { ApiError, fetchActions, fetchTask, finishAction, type Action, type Task, type UserSummary } from '@/lib/api'
 import { formatDate, timeAgo } from '@/lib/utils'
 
 const route = useRoute()
@@ -15,6 +15,8 @@ const task = ref<Task | null>(null)
 const actions = ref<Action[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+const finishingId = ref<number | null>(null)
+const finishError = ref<string | null>(null)
 
 const isAdmin = computed(() => {
   return user.value?.departments.some((d) => d.department === 'ADMIN') ?? false
@@ -31,6 +33,28 @@ const canAddAction = computed(() => {
     || task.value.leaderIds.includes(user.value.id)
     || task.value.memberIds.includes(user.value.id)
 })
+
+const canFinish = (action: Action): boolean => {
+  if (!user.value) return false
+  return isAdmin.value || action.memberIds.includes(user.value.id)
+}
+
+async function onFinish(action: Action) {
+  if (finishingId.value != null) return
+  finishError.value = null
+  finishingId.value = action.id
+  try {
+    const updated = await finishAction(action.id)
+    const index = actions.value.findIndex((a) => a.id === action.id)
+    if (index !== -1) {
+      actions.value.splice(index, 1, updated)
+    }
+  } catch (err) {
+    finishError.value = err instanceof ApiError ? err.message : 'Failed to finish the action.'
+  } finally {
+    finishingId.value = null
+  }
+}
 
 const projectId = computed(() => Number(route.params.id))
 const taskId = computed(() => Number(route.params.taskId))
@@ -173,27 +197,41 @@ const allMembers = computed<UserSummary[]>(() => {
         <section class="flex flex-col gap-3">
           <h2 class="text-sm font-semibold tracking-tight text-muted-foreground">Actions</h2>
           <p v-if="actions.length === 0" class="text-sm text-muted-foreground">No actions yet.</p>
-          <RouterLink
+          <p v-else-if="finishError" class="text-sm text-destructive" role="alert">{{ finishError }}</p>
+          <div
             v-for="action in sortedActions"
             :key="action.id"
-            :to="{ name: 'action-edit', params: { id: projectId, taskId: task.id, actionId: action.id } }"
-            class="block rounded-lg border bg-card p-4 text-card-foreground transition-colors hover:bg-accent/50"
+            class="flex items-start gap-3 rounded-lg border bg-card p-4 text-card-foreground transition-colors hover:bg-accent/50"
           >
-            <h3
-              class="truncate text-sm font-medium"
-              :class="{ 'text-muted-foreground line-through': action.endDate != null }"
+            <RouterLink
+              :to="{ name: 'action-edit', params: { id: projectId, taskId: task.id, actionId: action.id } }"
+              class="block min-w-0 flex-1"
             >
-              {{ action.title }}
-            </h3>
-            <p v-if="action.description" class="mt-1 line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">
-              {{ action.description }}
-            </p>
-            <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span v-if="action.memberIds.length === 0">No members</span>
-              <span v-else>{{ action.memberIds.length }} member{{ action.memberIds.length > 1 ? 's' : '' }}</span>
-              <span>updated {{ timeAgo(action.updatedDate) }}</span>
-            </div>
-          </RouterLink>
+              <h3
+                class="truncate text-sm font-medium"
+                :class="{ 'text-muted-foreground line-through': action.endDate != null }"
+              >
+                {{ action.title }}
+              </h3>
+              <p v-if="action.description" class="mt-1 line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                {{ action.description }}
+              </p>
+              <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span v-if="action.memberIds.length === 0">No members</span>
+                <span v-else>{{ action.memberIds.length }} member{{ action.memberIds.length > 1 ? 's' : '' }}</span>
+                <span>updated {{ timeAgo(action.updatedDate) }}</span>
+              </div>
+            </RouterLink>
+            <input
+              v-if="action.endDate == null && canFinish(action)"
+              type="checkbox"
+              class="mt-0.5 h-4 w-4 shrink-0 rounded border-input text-primary accent-primary disabled:opacity-50"
+              :aria-label="`Finish ${action.title}`"
+              :title="'Mark as finished'"
+              :disabled="finishingId != null"
+              @click.stop="onFinish(action)"
+            >
+          </div>
         </section>
       </template>
     </main>

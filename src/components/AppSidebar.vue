@@ -1,17 +1,28 @@
 <script setup lang="ts">
-import { FolderKanban, GraduationCap, Home, Settings } from '@lucide/vue'
+import { computed } from 'vue'
+import { FolderKanban, GraduationCap, Home, Settings, ShieldCheck } from '@lucide/vue'
 import { useRoute } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
 
 const route = useRoute()
+const { user } = useAuth()
 
-const items = [
-  { label: 'Home', icon: Home, to: 'home' },
-  { label: 'My Account', icon: GraduationCap, to: 'account' },
-  { label: 'Project', icon: FolderKanban, to: 'project' },
-  { label: 'Settings', icon: Settings, to: 'settings' },
-]
+const canManage = computed(() => user.value?.isManager
+  || user.value?.departments.some((d) => d.department === 'ADMIN' || d.department === 'PRESIDIUM')
+  || false)
 
-function isActive(item: (typeof items)[number]): boolean {
+const items = computed(() => {
+  const all = [
+    { label: 'Home', icon: Home, to: 'home' },
+    { label: 'My Account', icon: GraduationCap, to: 'account' },
+    { label: 'Project', icon: FolderKanban, to: 'project' },
+    { label: 'Manage', icon: ShieldCheck, to: 'manage', show: canManage.value },
+    { label: 'Settings', icon: Settings, to: 'settings' },
+  ]
+  return all.filter((item) => 'show' in item ? item.show : true)
+})
+
+function isActive(item: (typeof items.value)[number]): boolean {
   const activeName =
     route.name === 'project-detail'
     || route.name === 'task-detail'

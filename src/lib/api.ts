@@ -82,6 +82,27 @@ export function logout(): Promise<void> {
   return apiFetch<void>('/api/auth/logout', { method: 'POST' })
 }
 
+export interface RegistrationTicket {
+  id: number
+  code: string
+  createdAt: string
+  expiresAt: string
+  createdBy: number
+  department: Department
+  role: DepartmentRole
+}
+
+export function createRegistrationTicket(input: {
+  expiresAt: string
+  department: Department
+  role: DepartmentRole
+}): Promise<RegistrationTicket> {
+  return apiFetch<RegistrationTicket>('/api/admin/tickets', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
 export function fetchMe(): Promise<User> {
   return apiFetch<User>('/api/auth/me').then(normalizeUser)
 }

@@ -109,6 +109,15 @@ async function onSubmit() {
           {{ submitting ? 'Signing in…' : 'Sign in' }}
         </button>
       </form>
+
+      <button
+        type="button"
+        class="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+        :disabled="submitting"
+        @click="router.push({ name: 'register' })"
+      >
+        Register
+      </button>
     </div>
   </div>
 </template>

@@ -78,6 +78,33 @@ export function login(username: string, password: string, rememberMe: boolean): 
   }).then(normalizeUser)
 }
 
+export interface TicketValidation {
+  valid: boolean
+  expired: boolean
+  department: Department
+  role: DepartmentRole
+  expiresAt: string
+}
+
+export function validateTicket(code: string): Promise<TicketValidation> {
+  return apiFetch<TicketValidation>(`/api/tickets/${encodeURIComponent(code)}`)
+}
+
+export interface RegisterInput {
+  phone: string
+  password: string
+  userName: string
+  ticketCode: string
+  email: string | null
+}
+
+export function registerUser(input: RegisterInput): Promise<User> {
+  return apiFetch<User>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }).then(normalizeUser)
+}
+
 export function logout(): Promise<void> {
   return apiFetch<void>('/api/auth/logout', { method: 'POST' })
 }

@@ -1,0 +1,8 @@
+node_modules
+dist
+.git
+.idea
+*.tsbuildinfo
+Dockerfile
+.dockerignore
+docker-compose.yml

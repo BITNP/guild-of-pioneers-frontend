@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ApiError, fetchActions, fetchProjects, fetchTasks, type Action, type Project, type Task } from '@/lib/api'
+import { ApiError, fetchTodoTree, type TreeProject } from '@/lib/api'
 import { useAuth } from '@/composables/useAuth'
 
 type NodeKind = 'root' | 'project' | 'task' | 'action'
@@ -15,7 +15,6 @@ interface MindMapNode {
   taskId?: number
   actionId?: number
   finished?: boolean
-  related?: boolean
   children: MindMapNode[]
   x: number // horizontal center
   y: number // vertical center
@@ -60,7 +59,6 @@ const router = useRouter()
 const { user } = useAuth()
 const loading = ref(true)
 const error = ref<string | null>(null)
-const tree = ref<MindMapNode | null>(null)
 
 function estimateTextWidth(text: string, fontSize: number = NODE_FONT_SIZE): number {
   const asciiWidth = fontSize * 0.585
@@ -214,86 +212,73 @@ function computePositions(root: MindMapNode): LayoutResult {
   }
 }
 
-async function load(): Promise<void> {
-  loading.value = true
-  error.value = null
-  try {
-    const userId = user.value?.id
-    const projects: Project[] = await fetchProjects()
-    const taskLists = await Promise.all(projects.map((project) => fetchTasks(project.id)))
-    const tasks: Task[] = taskLists.flat()
-    const actionLists = await Promise.all(tasks.map((task) => fetchActions(task.id)))
-    const actionsByTask = new Map<number, Action[]>()
-    tasks.forEach((task, index) => actionsByTask.set(task.id, actionLists[index]))
-
-    tree.value = makeNode(
-      'root',
-      'root',
-      'Guild of Pioneers',
-      {},
-      projects.map((project, projectIndex) =>
-        makeNode(
-          'project',
-          `project-${project.id}`,
-          project.title,
-          {
-            projectId: project.id,
-            related: userId != null && (project.leaderIds.includes(userId) || project.memberIds.includes(userId)),
-          },
-          taskLists[projectIndex].map((task) =>
-            makeNode(
-              'task',
-              `task-${task.id}`,
-              task.title,
-              {
-                projectId: project.id,
-                taskId: task.id,
-                related: userId != null && (task.leaderIds.includes(userId) || task.memberIds.includes(userId)),
-              },
-              (actionsByTask.get(task.id) ?? []).map((action) =>
-                makeNode(
-                  'action',
-                  `action-${action.id}`,
-                  action.title,
-                  {
-                    projectId: project.id,
-                    taskId: task.id,
-                    actionId: action.id,
-                    finished: action.endDate != null,
-                    related: userId != null && action.memberIds.includes(userId),
-                  },
-                  [],
-                ),
+function treeToRoot(projects: TreeProject[]): MindMapNode {
+  return makeNode(
+    'root',
+    'root',
+    'Guild of Pioneers',
+    {},
+    projects.map((project) =>
+      makeNode(
+        'project',
+        `project-${project.id}`,
+        project.title,
+        { projectId: project.id },
+        (project.tasks ?? []).map((task) =>
+          makeNode(
+            'task',
+            `task-${task.id}`,
+            task.title,
+            { projectId: project.id, taskId: task.id },
+            (task.actions ?? []).map((action) =>
+              makeNode(
+                'action',
+                `action-${action.id}`,
+                action.title,
+                {
+                  projectId: project.id,
+                  taskId: task.id,
+                  actionId: action.id,
+                  finished: action.endDate != null,
+                },
+                [],
               ),
             ),
           ),
         ),
       ),
-    )
+    ),
+  )
+}
+
+async function load(): Promise<void> {
+  loading.value = true
+  error.value = null
+  try {
+    const userId = user.value?.id
+    const [allProjects, mineProjects] = await Promise.all([
+      fetchTodoTree(),
+      userId != null ? fetchTodoTree(userId) : Promise.resolve([]),
+    ])
+    allRoot.value = treeToRoot(allProjects)
+    mineRoot.value = treeToRoot(mineProjects)
   } catch (err) {
-    tree.value = null
+    allRoot.value = null
+    mineRoot.value = null
     error.value = err instanceof ApiError ? err.message : 'Failed to load projects.'
   } finally {
     loading.value = false
   }
 }
 
+const allRoot = ref<MindMapNode | null>(null)
+const mineRoot = ref<MindMapNode | null>(null)
+
 const showOnlyMine = ref(false)
 
-function filterTree(node: MindMapNode): MindMapNode | null {
-  if (node.kind === 'root') {
-    return { ...node, children: node.children.map(filterTree).filter((n): n is MindMapNode => n != null) }
-  }
-  const children = node.children.map(filterTree).filter((n): n is MindMapNode => n != null)
-  if (node.related || children.length > 0) {
-    return { ...node, children }
-  }
-  return null
-}
-
 const displayTree = computed<MindMapNode | null>(() => {
-  if (!tree.value) return null
-  return showOnlyMine.value ? filterTree(tree.value) : tree.value
+  if (!showOnlyMine.value) return allRoot.value
+  return mineRoot.value
 })
 
 const layoutResult = computed<LayoutResult | null>(() => (displayTree.value ? computePositions(displayTree.value) : null))
@@ -439,8 +424,8 @@ function onPointerCancel(): void {
   downNodeId = null
 }
 
-const hasProjects = computed(() => (tree.value?.children.length ?? 0) > 0)
-const hasRelatedNodes = computed(() => (displayTree.value?.children.length ?? 0) > 0)
+const hasProjects = computed(() => (allRoot.value?.children.length ?? 0) > 0)
+const hasRelatedNodes = computed(() => (mineRoot.value?.children.length ?? 0) > 0)
 
 onMounted(load)
 </script>

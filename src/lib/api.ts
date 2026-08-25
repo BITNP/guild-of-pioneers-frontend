@@ -213,6 +213,35 @@ export interface Task {
   members: UserSummary[]
 }
 
+export interface TreeAction {
+  id: number
+  taskId: number
+  title: string
+  endDate: string | null
+}
+
+export interface TreeTask {
+  id: number
+  projectId: number
+  title: string
+  actions?: TreeAction[]
+}
+
+export interface TreeProject {
+  id: number
+  title: string
+  tasks?: TreeTask[]
+}
+
+export function fetchTodoTree(userId?: number, depth = 3): Promise<TreeProject[]> {
+  const params = new URLSearchParams()
+  if (userId != null) {
+    params.set('userId', String(userId))
+  }
+  params.set('depth', String(depth))
+  return apiFetch<TreeProject[]>(`/api/todo/tree?${params.toString()}`)
+}
+
 export function fetchProjects(): Promise<Project[]> {
   return apiFetch<Project[]>('/api/todo/projects')
 }

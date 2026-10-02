@@ -1,45 +1,41 @@
 import { computed, ref } from 'vue'
-import { ApiError, fetchMe, login as apiLogin, logout as apiLogout, registerUser as apiRegister, updateProfile as apiUpdateProfile, updateUserProfile as apiUpdateUserProfile, uploadAvatar as apiUploadAvatar, uploadUserAvatar as apiUploadUserAvatar, type RegisterInput, type UpdateProfileInput, type User } from '@/lib/api'
+import { fetchAuthStatus, logout as apiLogout, registerUser as apiRegister, updateProfile as apiUpdateProfile, updateUserProfile as apiUpdateUserProfile, uploadAvatar as apiUploadAvatar, uploadUserAvatar as apiUploadUserAvatar, type AuthState, type AuthStatus, type RegisterInput, type UpdateProfileInput, type User } from '@/lib/api'
+import { safeReturnTo } from '@/lib/authNavigation'
 
 const user = ref<User | null>(null)
 const isLoading = ref(false)
+const state = ref<AuthState>('anonymous')
+const suggestions = ref<AuthStatus['suggestions']>(null)
+const bootstrapAdmin = ref(false)
 
 const isAuthenticated = computed(() => user.value !== null)
 
 async function refresh(): Promise<boolean> {
-  try {
-    user.value = await fetchMe()
-    return true
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 401) {
-      user.value = null
-      return false
-    }
-    throw error
-  }
+  const status = await fetchAuthStatus()
+  state.value = status.state
+  user.value = status.user
+  suggestions.value = status.suggestions
+  bootstrapAdmin.value = status.bootstrapAdmin
+  return isAuthenticated.value
 }
 
-async function login(username: string, password: string, rememberMe: boolean): Promise<User> {
-  isLoading.value = true
-  try {
-    user.value = await apiLogin(username, password, rememberMe)
-    return user.value
-  } finally {
-    isLoading.value = false
-  }
+function login(returnTo = '/'): void {
+  window.location.assign(`/api/auth/login?returnTo=${encodeURIComponent(safeReturnTo(returnTo))}`)
 }
 
 async function logout(): Promise<void> {
-  try {
-    await apiLogout()
-  } finally {
-    user.value = null
-  }
+  await apiLogout()
+  user.value = null
+  state.value = 'anonymous'
+  suggestions.value = null
+  bootstrapAdmin.value = false
 }
 
 async function register(input: RegisterInput): Promise<User> {
-  await apiRegister(input)
-  user.value = await apiLogin(input.userName, input.password, false)
+  user.value = await apiRegister(input)
+  state.value = 'active'
+  suggestions.value = null
+  bootstrapAdmin.value = false
   return user.value
 }
 
@@ -66,6 +62,9 @@ export function useAuth() {
     user,
     isLoading,
     isAuthenticated,
+    state,
+    suggestions,
+    bootstrapAdmin,
     refresh,
     login,
     register,

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
+import { authDestination } from '@/lib/authNavigation'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -94,25 +95,16 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-  const { isAuthenticated, refresh } = useAuth()
-
-  if (!isAuthenticated.value) {
-    try {
-      await refresh()
-    } catch {
-      // fall through to the redirect below if the auth check fails
-    }
+  const { state, refresh } = useAuth()
+  try {
+    await refresh()
+  } catch {
+    if (to.name === 'login') return true
+    return { name: 'login', query: { error: 'unavailable', redirect: to.fullPath } }
   }
-
-  if (!isAuthenticated.value && !to.meta.public) {
-    return { name: 'login', query: { redirect: to.fullPath } }
-  }
-
-  if (isAuthenticated.value && to.meta.public) {
-    return { name: 'home' }
-  }
-
-  return true
+  return authDestination(state.value, {
+    name: to.name, fullPath: to.fullPath, public: Boolean(to.meta.public), redirect: to.query.redirect,
+  }) ?? true
 })
 
 export default router

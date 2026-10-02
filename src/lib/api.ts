@@ -45,6 +45,11 @@ function normalizeUser(user: User): User {
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers)
+  if (!['GET', 'HEAD', 'OPTIONS'].includes((options.method ?? 'GET').toUpperCase())) {
+    // Fetch the current token for each write, including after login, logout or another tab's session change.
+    const csrf = await apiFetch<{ token: string; headerName: string }>('/api/auth/csrf', { cache: 'no-store' })
+    headers.set(csrf.headerName, csrf.token)
+  }
   if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
@@ -71,11 +76,20 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   return (await response.json()) as T
 }
 
-export function login(username: string, password: string, rememberMe: boolean): Promise<User> {
-  return apiFetch<User>('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ username, password, rememberMe }),
-  }).then(normalizeUser)
+export type AuthState = 'anonymous' | 'onboarding_required' | 'active'
+
+export interface AuthStatus {
+  state: AuthState
+  user: User | null
+  suggestions: { userName: string | null; email: string | null } | null
+  bootstrapAdmin: boolean
+}
+
+export function fetchAuthStatus(): Promise<AuthStatus> {
+  return apiFetch<AuthStatus>('/api/auth/status', { cache: 'no-store' }).then((status) => {
+    if (status.user) status.user = normalizeUser(status.user)
+    return status
+  })
 }
 
 export interface TicketValidation {
@@ -92,9 +106,8 @@ export function validateTicket(code: string): Promise<TicketValidation> {
 
 export interface RegisterInput {
   phone: string
-  password: string
   userName: string
-  ticketCode: string
+  ticketCode: string | null
   email: string | null
 }
 

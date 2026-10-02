@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { safeReturnTo } from '@/lib/authNavigation'
 import { Camera } from '@lucide/vue'
 import AvatarCropper from '@/components/AvatarCropper.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
@@ -8,7 +9,18 @@ import { useAuth } from '@/composables/useAuth'
 import { ApiError, validateTicket, type TicketValidation } from '@/lib/api'
 
 const router = useRouter()
-const { register, uploadAvatar } = useAuth()
+const route = useRoute()
+const { register, uploadAvatar, suggestions, bootstrapAdmin, logout } = useAuth()
+const switchError = ref('')
+async function switchAccount() {
+  switchError.value = ''
+  try {
+    await logout()
+    await router.replace({ name: 'login' })
+  } catch {
+    switchError.value = 'Could not log out. Please try again.'
+  }
+}
 
 const ticketCode = ref('')
 const validating = ref(false)
@@ -16,10 +28,9 @@ const validateError = ref<string | null>(null)
 const ticket = ref<TicketValidation | null>(null)
 
 const form = reactive({
-  userName: '',
+  userName: suggestions.value?.userName ?? '',
   phone: '',
-  email: '',
-  password: '',
+  email: suggestions.value?.email ?? '',
 })
 
 const submitting = ref(false)
@@ -128,10 +139,6 @@ async function onSubmit() {
     errorMessage.value = 'Please enter a valid phone number.'
     return
   }
-  if (form.password.length < 8) {
-    errorMessage.value = 'Password must be at least 8 characters.'
-    return
-  }
   const email = form.email.trim()
   if (email && !/^\S+@\S+\.\S+$/.test(email)) {
     errorMessage.value = 'Please enter a valid email address.'
@@ -142,9 +149,8 @@ async function onSubmit() {
   try {
     await register({
       phone: form.phone,
-      password: form.password,
       userName: form.userName.trim(),
-      ticketCode: ticketCode.value.trim(),
+      ticketCode: bootstrapAdmin.value ? null : ticketCode.value.trim(),
       email: email || null,
     })
     if (avatarFile.value) {
@@ -154,10 +160,10 @@ async function onSubmit() {
         // avatar is optional; registration has already succeeded
       }
     }
-    router.replace('/')
+    await router.replace(safeReturnTo(route.query.redirect))
   } catch (error) {
     if (error instanceof ApiError && error.status === 409) {
-      errorMessage.value = 'Phone is already registered.'
+      errorMessage.value = `${error.message}. If this is your existing account, contact a maintainer to link it.`
     } else if (error instanceof ApiError && error.status === 400) {
       errorMessage.value = error.message
     } else if (error instanceof ApiError && error.status >= 500) {
@@ -182,11 +188,13 @@ async function onSubmit() {
         </div>
         <div>
           <h1 class="text-xl font-semibold tracking-tight">Guild of Pioneers</h1>
-          <p class="text-sm text-muted-foreground">Create your account</p>
+          <p class="text-sm text-muted-foreground">Complete your site profile</p>
         </div>
       </div>
 
-      <div class="flex flex-col gap-4">
+      <p v-if="!bootstrapAdmin" class="mb-4 text-sm text-muted-foreground">Your BITNP sign-in is complete. An invitation is required to join this site.</p>
+      <p v-if="bootstrapAdmin" class="mb-4 text-sm text-muted-foreground">You are the configured first administrator. Complete your profile to finish setup.</p>
+      <div v-if="!bootstrapAdmin" class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
           <label for="ticket-code" class="text-sm font-medium">Registration ticket code</label>
           <textarea
@@ -217,7 +225,8 @@ async function onSubmit() {
         </p>
       </div>
 
-      <template v-if="ticket">
+      <template v-if="ticket || bootstrapAdmin">
+        <template v-if="ticket">
         <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div class="flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2">
             <span class="text-xs text-muted-foreground">Department</span>
@@ -233,6 +242,7 @@ async function onSubmit() {
           department. This code is valid until {{ new Date(ticket.expiresAt).toLocaleString() }}.
         </p>
 
+        </template>
         <form
           class="mt-6 flex flex-col gap-5 rounded-lg border border-border bg-card p-6 shadow-sm"
           novalidate
@@ -310,18 +320,6 @@ async function onSubmit() {
                 :disabled="submitting"
               >
             </div>
-            <div class="flex flex-col gap-1 rounded-md border border-border bg-background px-3 py-2">
-              <label for="register-password" class="text-xs text-muted-foreground">Password</label>
-              <input
-                id="register-password"
-                v-model="form.password"
-                type="password"
-                autocomplete="new-password"
-                class="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-medium shadow-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                placeholder="At least 8 characters"
-                :disabled="submitting"
-              >
-            </div>
           </div>
 
           <p
@@ -343,6 +341,8 @@ async function onSubmit() {
           </div>
         </form>
       </template>
+      <button type="button" class="mt-5 text-sm underline" @click="switchAccount">Log out of this site</button>
+      <p v-if="switchError" role="alert" class="text-sm text-destructive">{{ switchError }}</p>
     </div>
 
     <AvatarCropper

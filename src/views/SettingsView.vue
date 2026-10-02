@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { ref } from 'vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import { useAuth } from '@/composables/useAuth'
 
 const router = useRouter()
 const { logout } = useAuth()
+const errorMessage = ref('')
 
 async function onLogout() {
+  errorMessage.value = ''
   try {
     await logout()
-  } finally {
-    router.replace({ name: 'login' })
+    await router.replace({ name: 'login' })
+  } catch {
+    errorMessage.value = 'Could not log out. Please try again.'
   }
 }
 </script>
@@ -29,8 +33,9 @@ async function onLogout() {
         class="inline-flex h-9 w-fit items-center justify-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground shadow-sm transition-colors hover:bg-destructive/90 disabled:pointer-events-none disabled:opacity-50"
         @click="onLogout"
       >
-        Log out
+        Log out of this site
       </button>
+      <p v-if="errorMessage" role="alert" class="text-sm text-destructive">{{ errorMessage }}</p>
     </main>
   </div>
 </template>
